@@ -117,8 +117,8 @@ class replay_buffer:
     def load_mixture(self, path_expert, path_random, expert_percent=0.1, random_percent=0.9, args=None):
         # 0 <= expert_percent <= 1, same for random_percent
         
-        with open(path_expert, "rb") as fp_expert:  
-            with open(path_random, "rb") as fp_random:  
+        with open(path_expert, "rb") as fp_expert:
+            with open(path_random, "rb") as fp_random:
                 data_expert = pickle.load(fp_expert)  
                 data_random = pickle.load(fp_random)  
                 size_expert = data_expert['o'].shape[0]
@@ -130,7 +130,7 @@ class replay_buffer:
                 # if size > self.size:
                 #     self.buffers = {key: np.empty([size, *shape]) for key, shape in self.buffer_shapes.items()}
                 #     self.size = size
-                    
+
                 for key in data_expert.keys():
                     self.buffers[self.key_map[key]][:split_point] = data_expert[key][:split_point]
                     self.buffers[self.key_map[key]][split_point:size] = data_random[key][:size - split_point]

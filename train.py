@@ -3,7 +3,7 @@ import numpy as np
 import gym
 
 import os
-from mpi4py import MPI
+# from mpi4py import MPI
 from envs import register_envs
 from envs.multi_world_wrapper import NoisyAction
 from rl_modules.actionablemodel_agent import ActionableModel
@@ -13,7 +13,7 @@ from rl_modules.gcsl_agent import GCSL
 
 import random
 import torch
-import wandb
+# import wandb
 
 """
 train the agent, the MPI part code is copy from openai baselines(https://github.com/openai/baselines/blob/master/baselines/her)
@@ -165,17 +165,24 @@ def launch(args):
 
     args.run_name = run_name
 
-    if MPI.COMM_WORLD.Get_rank() == 0:
-        wandb.init(project='gofar', name=run_name, 
-        group=args.env, config=args)
+    # if MPI.COMM_WORLD.Get_rank() == 0:
+    #     wandb.init(project='gofar', name=run_name,
+    #     group=args.env, config=args)
 
     # set random seeds for reproduce
-    env.seed(args.seed + MPI.COMM_WORLD.Get_rank())
-    random.seed(args.seed + MPI.COMM_WORLD.Get_rank())
-    np.random.seed(args.seed + MPI.COMM_WORLD.Get_rank())
-    torch.manual_seed(args.seed + MPI.COMM_WORLD.Get_rank())
+    # env.seed(args.seed + MPI.COMM_WORLD.Get_rank())
+    # random.seed(args.seed + MPI.COMM_WORLD.Get_rank())
+    # np.random.seed(args.seed + MPI.COMM_WORLD.Get_rank())
+    # torch.manual_seed(args.seed + MPI.COMM_WORLD.Get_rank())
+    # if args.cuda:
+    #     torch.cuda.manual_seed(args.seed + MPI.COMM_WORLD.Get_rank())
+
+    env.seed(args.seed)
+    random.seed(args.seed)
+    np.random.seed(args.seed)
+    torch.manual_seed(args.seed)
     if args.cuda:
-        torch.cuda.manual_seed(args.seed + MPI.COMM_WORLD.Get_rank())
+        torch.cuda.manual_seed(args.seed)
     
     # get the environment parameters
     env_params = get_env_params(env)

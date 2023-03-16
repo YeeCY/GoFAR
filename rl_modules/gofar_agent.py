@@ -4,8 +4,8 @@ import torch.nn.functional as F
 import os
 from datetime import datetime
 import numpy as np
-from mpi4py import MPI
-from mpi_utils.mpi_utils import sync_networks, sync_grads
+# from mpi4py import MPI
+# from mpi_utils.mpi_utils import sync_networks, sync_grads
 from rl_modules.base_agent import BaseAgent
 from rl_modules.models import actor, critic, value
 from rl_modules.discriminator import Discriminator
@@ -22,8 +22,8 @@ class GoFAR(BaseAgent):
         self.actor_network = actor(env_params)
         self.value_network = value(env_params)
         # sync the networks across the cpus
-        sync_networks(self.actor_network)
-        sync_networks(self.value_network)
+        # sync_networks(self.actor_network)
+        # sync_networks(self.value_network)
         # build up the target network
         self.actor_target_network = actor(env_params)
         self.value_target_network = value(env_params)
@@ -196,11 +196,11 @@ class GoFAR(BaseAgent):
         # update the actor network
         self.actor_optim.zero_grad()
         actor_loss.backward()
-        sync_grads(self.actor_network)
+        # sync_grads(self.actor_network)
         self.actor_optim.step()
 
         # update the value_network
         self.value_optim.zero_grad()
         value_loss.backward()
-        sync_grads(self.value_network)
+        # sync_grads(self.value_network)
         self.value_optim.step()

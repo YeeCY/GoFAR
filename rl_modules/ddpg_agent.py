@@ -2,8 +2,8 @@ import torch
 import os
 from datetime import datetime
 import numpy as np
-from mpi4py import MPI
-from mpi_utils.mpi_utils import sync_networks, sync_grads
+# from mpi4py import MPI
+# from mpi_utils.mpi_utils import sync_networks, sync_grads
 from rl_modules.base_agent import BaseAgent
 from rl_modules.replay_buffer import replay_buffer
 from rl_modules.models import actor, critic
@@ -25,8 +25,8 @@ class DDPG(BaseAgent):
         self.actor_network = actor(env_params)
         self.critic_network = critic(env_params)
         # sync the networks across the cpus
-        sync_networks(self.actor_network)
-        sync_networks(self.critic_network)
+        # sync_networks(self.actor_network)
+        # sync_networks(self.critic_network)
         # build up the target network
         self.actor_target_network = actor(env_params)
         self.critic_target_network = critic(env_params)

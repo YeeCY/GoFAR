@@ -2,19 +2,20 @@ import torch
 import os
 from datetime import datetime
 import numpy as np
-from numpngw import write_apng
+# from numpngw import write_apng
 import matplotlib.pyplot as plt
-from mpi4py import MPI
+# from mpi4py import MPI
 import threading
 import time 
 from tqdm import tqdm
 from PIL import Image 
-import wandb 
+# import wandb
 
 from rl_modules.replay_buffer import replay_buffer
 from her_modules.her import her_sampler
 from mpi_utils.normalizer import normalizer
-from mpi_utils.mpi_utils import sync_networks, sync_grads, discounted_return
+# from mpi_utils.mpi_utils import sync_networks, sync_grads, discounted_return
+from mpi_utils.mpi_utils import discounted_return
 
 def goal_distance(goal_a, goal_b):
     assert goal_a.shape == goal_b.shape
@@ -44,7 +45,8 @@ class BaseAgent:
         self.o_norm = normalizer(size=env_params['obs'], default_clip_range=self.args.clip_range)
         self.g_norm = normalizer(size=env_params['goal'], default_clip_range=self.args.clip_range)
         # create the dict for store the model
-        if MPI.COMM_WORLD.Get_rank() == 0:
+        # if MPI.COMM_WORLD.Get_rank() == 0:
+        if True:
             if not os.path.exists(self.args.save_dir):
                 os.mkdir(self.args.save_dir)
             # path to save the model
@@ -245,20 +247,24 @@ class BaseAgent:
         dis_return, undis_return = discounted_return(total_rewards, self.args.gamma)
 
         local_discounted_return = np.mean(dis_return)
-        global_discounted_return = MPI.COMM_WORLD.allreduce(local_discounted_return, op=MPI.SUM) / MPI.COMM_WORLD.Get_size()
+        # global_discounted_return = MPI.COMM_WORLD.allreduce(local_discounted_return, op=MPI.SUM) / MPI.COMM_WORLD.Get_size()
 
         local_undiscounted_return = np.mean(undis_return)
-        global_undiscounted_return = MPI.COMM_WORLD.allreduce(local_undiscounted_return, op=MPI.SUM) / MPI.COMM_WORLD.Get_size()
+        # global_undiscounted_return = MPI.COMM_WORLD.allreduce(local_undiscounted_return, op=MPI.SUM) / MPI.COMM_WORLD.Get_size()
 
         local_distances = np.mean(np.linalg.norm(total_ag[:, -1] - total_g[:, -1], axis=1))
-        global_distances = MPI.COMM_WORLD.allreduce(local_distances, op=MPI.SUM) / MPI.COMM_WORLD.Get_size()
+        # global_distances = MPI.COMM_WORLD.allreduce(local_distances, op=MPI.SUM) / MPI.COMM_WORLD.Get_size()
 
         local_success_rate = np.mean(total_success_rate[:, -1])
-        global_success_rate = MPI.COMM_WORLD.allreduce(local_success_rate, op=MPI.SUM) / MPI.COMM_WORLD.Get_size()
-        results = {'Test/final_distance': global_distances, 
-                   'Test/success_rate': global_success_rate,
-                   'Test/discounted_return': global_discounted_return,
-                   'Test/undiscounted_return': global_undiscounted_return}
+        # global_success_rate = MPI.COMM_WORLD.allreduce(local_success_rate, op=MPI.SUM) / MPI.COMM_WORLD.Get_size()
+        # results = {'Test/final_distance': global_distances,
+        #            'Test/success_rate': global_success_rate,
+        #            'Test/discounted_return': global_discounted_return,
+        #            'Test/undiscounted_return': global_undiscounted_return}
+        results = {'Test/final_distance': local_distances,
+                   'Test/success_rate': local_success_rate,
+                   'Test/discounted_return': local_discounted_return,
+                   'Test/undiscounted_return': local_undiscounted_return}
         return results
 
     def learn(self, evaluate_agent=True):
@@ -279,23 +285,38 @@ class BaseAgent:
         
         # start to collect samples
         for epoch in range(self.args.n_epochs):
-            future_p = self.her_module.future_p  
+            future_p = self.her_module.future_p
             
             # do evaluation
             if evaluate_agent:
-                if MPI.COMM_WORLD.Get_rank() != 0:
-                    results = self._eval_agent(make_gif=False, epoch=epoch)
-                else:
-                    results = self._eval_agent(make_gif=epoch % 10 == 0, epoch=epoch)
-                if MPI.COMM_WORLD.Get_rank() == 0:
-                    # total_episodes = MPI.COMM_WORLD.allreduce(self.num_episodes, op=MPI.SUM)
-                    total_episodes = self.num_episodes
-                    results.update({'future_p': future_p, 'epoch':epoch, 'episode': total_episodes, 'step': total_episodes*self.env_params['max_timesteps']})
-                    wandb.log(results)
-                    print('[{}] epoch is: {}, eval success rate is: {:.3f}, final_distance is: {:.3f}'.format(datetime.now(), epoch, results['Test/success_rate'], results['Test/final_distance']))
+                # if MPI.COMM_WORLD.Get_rank() != 0:
+                #     results = self._eval_agent(make_gif=False, epoch=epoch)
+                # else:
+                #     results = self._eval_agent(make_gif=epoch % 10 == 0, epoch=epoch)
+                # if MPI.COMM_WORLD.Get_rank() == 0:
+                #     # total_episodes = MPI.COMM_WORLD.allreduce(self.num_episodes, op=MPI.SUM)
+                #     total_episodes = self.num_episodes
+                #     results.update({'future_p': future_p, 'epoch':epoch, 'episode': total_episodes, 'step': total_episodes*self.env_params['max_timesteps']})
+                #     # wandb.log(results)
+                #     print('[{}] epoch is: {}, eval success rate is: {:.3f}, final_distance is: {:.3f}'.format(datetime.now(), epoch, results['Test/success_rate'], results['Test/final_distance']))
+                #
+                #     torch.save([self.o_norm.mean, self.o_norm.std, self.g_norm.mean, self.g_norm.std, self.actor_network], \
+                #                     self.model_path + f'/{self.args.run_name}-Epoch{epoch}.pt')
 
-                    torch.save([self.o_norm.mean, self.o_norm.std, self.g_norm.mean, self.g_norm.std, self.actor_network], \
-                                    self.model_path + f'/{self.args.run_name}-Epoch{epoch}.pt')
+                # results = self._eval_agent(make_gif=epoch % 10 == 0, epoch=epoch)
+                results = self._eval_agent(make_gif=False, epoch=epoch)
+
+                total_episodes = self.num_episodes
+                results.update({'future_p': future_p, 'epoch': epoch, 'episode': total_episodes,
+                                'step': total_episodes * self.env_params['max_timesteps']})
+                print(
+                    '[{}] epoch is: {}, eval success rate is: {:.3f}, final_distance is: {:.3f}'.format(datetime.now(),
+                                                                                                        epoch, results[
+                                                                                                            'Test/success_rate'],
+                                                                                                        results[
+                                                                                                            'Test/final_distance']))
+                torch.save([self.o_norm.mean, self.o_norm.std, self.g_norm.mean, self.g_norm.std, self.actor_network], \
+                           self.model_path + f'/{self.args.run_name}-Epoch{epoch}.pt')
 
             # train discriminator
             # if self.args.use_disc:
@@ -315,8 +336,13 @@ class BaseAgent:
                 self._soft_update()
 
         # end-of-training things
-        if MPI.COMM_WORLD.Get_rank() == 0:
-            results = self._eval_agent(make_gif=True, epoch=epoch)
-            # save the model 
-            torch.save([self.o_norm.mean, self.o_norm.std, self.g_norm.mean, self.g_norm.std, self.actor_network], \
-            self.model_path + f'/{self.args.run_name}.pt')
+        # if MPI.COMM_WORLD.Get_rank() == 0:
+        #     results = self._eval_agent(make_gif=True, epoch=epoch)
+        #     # save the model
+        #     torch.save([self.o_norm.mean, self.o_norm.std, self.g_norm.mean, self.g_norm.std, self.actor_network], \
+        #     self.model_path + f'/{self.args.run_name}.pt')
+
+        results = self._eval_agent(make_gif=False, epoch=epoch)
+        # save the model
+        torch.save([self.o_norm.mean, self.o_norm.std, self.g_norm.mean, self.g_norm.std, self.actor_network], \
+                   self.model_path + f'/{self.args.run_name}.pt')

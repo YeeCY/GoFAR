@@ -3,6 +3,10 @@ import pickle
 import numpy as np
 import torch 
 
+from rlkit.data_management.obs_dict_replay_buffer import (
+    combine_dicts,
+)
+
 """
 the replay buffer here is basically from the openai baselines code
 
@@ -105,14 +109,45 @@ class replay_buffer:
     def load(self, path, percent=1.0):
         with open(path, "rb") as fp:  
             data = pickle.load(fp)
-            size = data['o'].shape[0]
-            self.current_size = int(size * percent)
-            # if size > self.size:
-            #     self.buffers = {key: np.empty([size, *shape]) for key, shape in self.buffer_shapes.items()}
-            #     self.size = size
+            if "SawyerEnv6" in path:
+                size = len(data)
+                self.current_size = int(size * percent)
 
-            for key in data.keys():
-                self.buffers[self.key_map[key]][:self.current_size] = data[key][:self.current_size]
+                for idx, path in zip(range(self.current_size), data):
+                    obs = path["observations"]
+                    actions = path["actions"]
+                    # rewards = path["rewards"]
+                    # next_obs = path["next_observations"]
+                    # terminals = path["terminals"]
+                    # path_len = len(rewards)
+
+                    obs = combine_dicts(obs, ['image_observation', 'image_achieved_goal', 'image_desired_goal'])
+
+                    self.buffers['obs'][idx] = obs['image_observation']
+                    self.buffers['g'][idx] = obs['image_desired_goal'][:-1]
+                    self.buffers['ag'][idx] = obs['image_achieved_goal']
+                    self.buffers['actions'][idx] = actions[:-1]
+
+                # for key in data.keys():
+                #     if key == 'obs':
+                #         self.buffers[key] =
+
+                    # {'obs': np.empty([self.size, self.T, self.env_params['obs']]),
+                    #  'ag': np.empty([self.size, self.T, self.env_params['goal']]),
+                    #  'g': np.empty([self.size, self.T - 1, self.env_params['goal']]),
+                    #  'actions': np.empty([self.size, self.T - 1, self.env_params['action']]),
+                    #  }
+                # print()
+
+            else:
+                size = data['o'].shape[0]
+                self.current_size = int(size * percent)
+                # if size > self.size:
+                #     self.buffers = {key: np.empty([size, *shape]) for key, shape in self.buffer_shapes.items()}
+                #     self.size = size
+
+                for key in data.keys():
+                    self.buffers[self.key_map[key]][:self.current_size] = data[key][:self.current_size]
 
     def load_mixture(self, path_expert, path_random, expert_percent=0.1, random_percent=0.9, args=None):
         # 0 <= expert_percent <= 1, same for random_percent

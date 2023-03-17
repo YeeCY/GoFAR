@@ -15,6 +15,17 @@ import random
 import torch
 # import wandb
 
+from gym.wrappers import ClipAction
+
+import roboverse as rv
+
+from rlkit.envs.images import EnvRenderer
+from rlkit.envs.images import InsertImageEnv
+from rlkit.envs.contextual.goal_conditioned import PresampledPathDistribution
+from rlkit.experimental.kuanfang.envs.contextual_env import ContextualEnv
+from rlkit.experimental.kuanfang.envs.reward_fns import GoalReachingRewardFn
+from rlkit.experimental.kuanfang.envs.drawer_pnp_push_commands import drawer_pnp_push_commands
+
 """
 train the agent, the MPI part code is copy from openai baselines(https://github.com/openai/baselines/blob/master/baselines/her)
 
@@ -79,6 +90,14 @@ def get_args():
     parser.add_argument('--expert_percent', type=float, default=0.1, help='the expert coefficient')
     parser.add_argument('--random_percent', type=float, default=0.9, help='the random coefficient')
 
+    # sawyer env6
+    parser.add_argument('--presampled_goal_dir', type=str,
+                        default='~/offline_c_learning/dataset/env6_td_pnp_push/goals_early_stop')
+    parser.add_argument('--goal_timeoutk', type=int, default=10)
+    parser.add_argument('--eval_seed', type=int, default=12)
+    parser.add_argument('--env_obs_img_dim', type=int, default=196)
+    parser.add_argument('--obs_img_dim', type=int, default=48)
+
     args = parser.parse_args()
 
     return args
@@ -86,13 +105,20 @@ def get_args():
 def get_env_params(env):
     obs = env.reset()
     # close the environment
-    params = {'obs': obs['observation'].shape[0],
-            'goal': obs['desired_goal'].shape[0],
-            'action': env.action_space.shape[0],
-            'action_max': env.action_space.high[0],
-            'action_space': env.action_space
-            }
-    params['max_timesteps'] = env._max_episode_steps
+    if isinstance(env, ContextualEnv):
+        params = {'obs': obs['image_observation'].shape[0],
+                  'goal': obs['image_desired_goal'].shape[0],
+                  'action': env.action_space.shape[0],
+                  'action_max': env.action_space.high[0],
+                  'action_space': env.action_space}
+        params['max_timesteps'] = env._max_episode_steps
+    else:
+        params = {'obs': obs['observation'].shape[0],
+                  'goal': obs['desired_goal'].shape[0],
+                  'action': env.action_space.shape[0],
+                  'action_max': env.action_space.high[0],
+                  'action_space': env.action_space}
+        params['max_timesteps'] = env._max_episode_steps
     return params
 
 def get_full_envname(name):
@@ -113,7 +139,7 @@ def get_method_params(args):
     if args.online:
         args.n_batches = 40
         args.n_cycles = 50
-        
+
     if args.method == 'ddpg' or args.method == 'td3bc':
         args.lr_actor = 0.001
         args.lr_critic = 0.001
@@ -124,14 +150,70 @@ def get_method_params(args):
     if 'gcsl' in args.method or 'AM' in args.method:
         args.relabel_percent = 1.0
     if 'gcbc' in args.method:
-        args.relabel = False 
+        args.relabel = False
     if 'gofar' in args.method:
-        args.relabel = False 
-        args.reward_type = 'disc' 
+        args.relabel = False
+        args.reward_type = 'disc'
 
     if args.env == 'DClawTurn' or args.env == 'FetchReach':
         args.expert_percent = 0.
-        
+
+
+def make_sawyer_env6(args):
+    presampled_goal_dir = os.path.expanduser(args.presampled_goal_dir)
+    presampled_goals_path = os.path.join(
+        presampled_goal_dir,
+        'td_pnp_push_scripted_goals_timeoutk{}_seed{}.pkl'.format(
+            args.goal_timeoutk, args.eval_seed))
+
+    raw_env = rv.make(
+        "SawyerRigAffordances-v6",
+        gui=False,
+        expl=True,
+        env_obs_img_dim=args.env_obs_img_dim,
+        obs_img_dim=args.obs_img_dim,
+        test_env=True,
+        test_env_command=drawer_pnp_push_commands[args.eval_seed],
+        downsample=True,
+    )
+
+    state_env = ClipAction(raw_env)
+    renderer = EnvRenderer(
+        create_image_format='HWC',
+        output_image_format='CWH',
+        flatten_image=True,
+        width=args.obs_img_dim,
+        height=args.obs_img_dim)
+    env = InsertImageEnv(
+        state_env,
+        renderer=renderer)
+
+    diagnostics = env.get_contextual_diagnostics
+    context_distribution = PresampledPathDistribution(
+        presampled_goals_path,
+        None,
+        initialize_encodings=False)
+    reward_fn = GoalReachingRewardFn(
+        state_env.env,
+        use_pretrained_reward_classifier_path=False,
+        obs_type='state',
+        reward_type='highlevel',
+        epsilon=3.0,
+        terminate_episode=0
+    )
+
+    env = ContextualEnv(
+        env,
+        context_distribution=context_distribution,
+        reward_fn=reward_fn,
+        observation_key='latent_observation',
+        contextual_diagnostics_fns=[diagnostics] if not isinstance(
+            diagnostics, list) else diagnostics,
+    )
+    env._max_episode_steps = 74
+
+    return env
+
 
 def launch(args):
     get_method_params(args)
@@ -141,9 +223,12 @@ def launch(args):
     # load environment
     register_envs()
 
-    env = gym.make(args.env_id)
-    env_id = args.env_id 
-    
+    if args.env == "SawyerEnv6":
+        env = make_sawyer_env6(args)
+    else:
+        env = gym.make(args.env_id)
+    env_id = args.env_id
+
     # stochastic environment setting
     if args.noise:
         env = NoisyAction(env, noise_eps=args.noise_eps)
@@ -153,7 +238,7 @@ def launch(args):
         args.relabel_percent = 0.
     relabel_tag = f'relabel{args.relabel_percent}'
 
-    reward_tag = args.reward_type 
+    reward_tag = args.reward_type
     if args.reward_type == 'disc':
         reward_tag = f'{args.disc_iter}disc{args.disc_lambda}'
     elif args.reward_type == 'binary':
@@ -183,7 +268,7 @@ def launch(args):
     torch.manual_seed(args.seed)
     if args.cuda:
         torch.cuda.manual_seed(args.seed)
-    
+
     # get the environment parameters
     env_params = get_env_params(env)
 
@@ -199,7 +284,7 @@ def launch(args):
     else:
         raise NotImplementedError
     print(run_name)
-    
+
     # do offline goal-conditioned rl 
     trainer.learn(evaluate_agent=args.eval)
 

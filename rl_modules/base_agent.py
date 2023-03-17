@@ -17,6 +17,9 @@ from mpi_utils.normalizer import normalizer
 # from mpi_utils.mpi_utils import sync_networks, sync_grads, discounted_return
 from mpi_utils.mpi_utils import discounted_return
 
+from rlkit.experimental.kuanfang.envs.contextual_env import ContextualEnv
+
+
 def goal_distance(goal_a, goal_b):
     assert goal_a.shape == goal_b.shape
     return np.linalg.norm(goal_a - goal_b, axis=-1)
@@ -51,12 +54,11 @@ class BaseAgent:
                 os.mkdir(self.args.save_dir)
             # path to save the model
             self.model_path = os.path.join(self.args.save_dir, self.args.env)
-            if not os.path.exists(self.model_path):
-                os.mkdir(self.model_path)
-            self.model_path = os.path.join(self.model_path, self.args.run_name)
+            # if not os.path.exists(self.model_path):
+            #     os.mkdir(self.model_path)
+            self.model_path = os.path.join(self.model_path, self.args.run_name, 'run' + str(self.args.seed))
 
-            if not os.path.exists(self.model_path):
-                os.mkdir(self.model_path)  
+            os.makedirs(self.model_path, exist_ok=True)
 
     # hack reward function for Fetch which allows us to pass in different threshold values
     def compute_reward(self, achieved_goal, goal, info):
@@ -192,15 +194,29 @@ class BaseAgent:
 
     def _eval_agent(self, make_gif=False, epoch=0):
         total_obs, total_g, total_ag, total_rewards, total_success_rate = [], [], [], [], []
+
+        sawyer_env6 = isinstance(self.env, ContextualEnv)
+        if sawyer_env6:
+            max_timesteps = 200
+        else:
+            max_timesteps = self.env_params['max_timesteps']
+
         for i in range(self.args.n_test_rollouts):
             per_obs, per_g, per_ag, per_rewards, per_success_rate = [], [], [], [], []
 
             observation = self.env.reset()
-            obs = observation['observation']
-            ag = observation['achieved_goal']
-            g = observation['desired_goal']
+
+            if sawyer_env6:
+                obs = observation['image_observation']
+                ag = observation['image_observation']
+                g = observation['image_desired_goal']
+            else:
+                obs = observation['observation']
+                ag = observation['achieved_goal']
+                g = observation['desired_goal']
+
             imgs = []
-            for _ in range(self.env_params['max_timesteps']):
+            for _ in range(max_timesteps):
                 with torch.no_grad():
                     input_tensor = self._preproc_inputs(obs, g)
                     actions = self._deterministic_action(input_tensor)
@@ -209,6 +225,8 @@ class BaseAgent:
                 observation_new, reward, _, info = self.env.step(actions)
                 if 'score/success' in info:
                     info['is_success'] = float(info['score/success'])
+                else:
+                    info['is_success'] = float(reward == 0)
                 if self.args.env.startswith('DClaw'):
                     reward = float(info['score/success']) # hack to get DClawTurn to return sparse reward
                 if make_gif:
@@ -221,9 +239,14 @@ class BaseAgent:
                 per_rewards.append(reward)
                 per_success_rate.append(info['is_success'])
 
-                obs = observation_new['observation']
-                ag = observation_new['achieved_goal']
-                g = observation_new['desired_goal']
+                if sawyer_env6:
+                    obs = observation_new['image_observation']
+                    ag = observation_new['image_observation']
+                    g = observation_new['image_desired_goal']
+                else:
+                    obs = observation_new['observation']
+                    ag = observation_new['achieved_goal']
+                    g = observation_new['desired_goal']
 
             total_obs.append(per_obs)
             total_g.append(per_g)
@@ -322,7 +345,7 @@ class BaseAgent:
             # if self.args.use_disc:
             #     for _ in range(self.args.disc_iter):
             #         self._update_discriminator(future_p=future_p)
-                    
+
             # do training
             for _ in tqdm(range(self.args.n_cycles)):
                 # train discriminator

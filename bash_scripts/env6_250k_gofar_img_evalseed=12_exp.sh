@@ -1,7 +1,5 @@
 #!/bin/bash
 
-EXP_NAME=$1
-
 SCRIPT_DIR=$(dirname "$BASH_SOURCE")
 PROJECT_DIR=$(realpath "$SCRIPT_DIR/..")
 

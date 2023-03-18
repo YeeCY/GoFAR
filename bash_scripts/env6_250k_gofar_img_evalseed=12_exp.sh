@@ -15,7 +15,7 @@ export PYTHONPATH=$PYTHONPATH:$HOME/offline_c_learning/railrl-private
 export PATH=$PATH:$HOME/anaconda3/envs/railrl/bin
 export LOG_ROOT="/projects/rsalakhugroup/chongyiz/offline_c_learning/GoFAR/saved_models/SawyerEnv6"
 
-declare -a seeds=(0 1)
+declare -a seeds=(0)
 
 for seed in "${seeds[@]}"; do
   export CUDA_VISIBLE_DEVICES=$seed

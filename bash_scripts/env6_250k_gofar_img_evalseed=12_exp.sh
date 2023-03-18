@@ -13,14 +13,14 @@ export PYTHONPATH=$PYTHONPATH:$HOME/offline_c_learning/bullet-manipulation/robov
 export PYTHONPATH=$PYTHONPATH:$HOME/offline_c_learning/multiworld
 export PYTHONPATH=$PYTHONPATH:$HOME/offline_c_learning/railrl-private
 export PATH=$PATH:$HOME/anaconda3/envs/railrl/bin
-export LOG_ROOT="/projects/rsalakhugroup/chongyiz/offline_c_learning/GoFAR/saved_models/SawyerEnv6/SawyerEnv6-0.1-0.0-gofar-20disc0.01-relabel0.0-0"
+export LOG_ROOT="/projects/rsalakhugroup/chongyiz/offline_c_learning/GoFAR/saved_models/SawyerEnv6"
 
-declare -a seeds=(0)
+declare -a seeds=(0 1)
 
 for seed in "${seeds[@]}"; do
   export CUDA_VISIBLE_DEVICES=$seed
-  rm -r "$LOG_ROOT"/run"$seed"
-  mkdir -p "$LOG_ROOT"/run"$seed"
+  rm -rfv "$LOG_ROOT"/SawyerEnv6-0.1-0.0-gofar-20disc0.01-relabel0.0-"$seed"
+  mkdir -p "$LOG_ROOT"/SawyerEnv6-0.1-0.0-gofar-20disc0.01-relabel0.0-"$seed"
   nohup \
   python $PROJECT_DIR/train.py \
     --env SawyerEnv6 \
@@ -32,6 +32,6 @@ for seed in "${seeds[@]}"; do
     --buffer-size 500_000 \
     --threshold 0.1 \
     --seed "$seed" \
-  > "$LOG_ROOT"/run"$seed"/stream.log 2>&1 & \
+  > "$LOG_ROOT"/SawyerEnv6-0.1-0.0-gofar-20disc0.01-relabel0.0-"$seed"/stream.log 2>&1 & \
   sleep 2
 done

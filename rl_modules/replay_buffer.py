@@ -114,6 +114,8 @@ class replay_buffer:
                 self.current_size = int(size * percent)
 
                 for idx, path in zip(range(self.current_size), data):
+                    print("loading sawyer env6 path: {}".format(idx))
+
                     obs = path["observations"]
                     actions = path["actions"]
                     # rewards = path["rewards"]

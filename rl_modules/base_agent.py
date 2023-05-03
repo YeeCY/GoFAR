@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import threading
 import time 
 from tqdm import tqdm
+import pickle as pkl
 from PIL import Image 
 # import wandb
 
@@ -340,6 +341,8 @@ class BaseAgent:
                                                                                                             'Test/final_distance']))
                 torch.save([self.o_norm.mean, self.o_norm.std, self.g_norm.mean, self.g_norm.std, self.actor_network], \
                            self.model_path + f'/{self.args.run_name}-Epoch{epoch}.pt')
+                with open(self.model_path + f"/{self.args.run_name}-Epoch{epoch}-results.pkl", "wb+") as f:
+                    pkl.dump(results, f)
 
             # train discriminator
             # if self.args.use_disc:

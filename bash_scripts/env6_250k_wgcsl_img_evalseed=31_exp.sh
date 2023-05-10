@@ -13,7 +13,7 @@ export PYTHONPATH=$PYTHONPATH:$HOME/offline_c_learning/bullet-manipulation/robov
 export PYTHONPATH=$PYTHONPATH:$HOME/offline_c_learning/multiworld
 export PYTHONPATH=$PYTHONPATH:$HOME/offline_c_learning/railrl-private
 export PATH=$PATH:$HOME/anaconda3/envs/railrl/bin
-export LOG_ROOT="/projects/rsalakhugroup/chongyiz/offline_c_learning/GoFAR/saved_models/SawyerEnv6/12"
+export LOG_ROOT="/projects/rsalakhugroup/chongyiz/offline_c_learning/GoFAR/saved_models/SawyerEnv6/31"
 
 declare -a seeds=(0 1)
 
@@ -28,8 +28,7 @@ for seed in "${seeds[@]}"; do
     --random_percent 0.0 \
     --n-epochs 300 \
     --n-cycles 50 \
-    --eval_seed 12 \
-    --goal_timeoutk 10 \
+    --eval_seed 31 \
     --presampled_goal_dir /projects/rsalakhugroup/chongyiz/offline_c_learning/dataset/env6_td_pnp_push_1m/goals_early_stop \
     --buffer-size 500_000 \
     --threshold 0.1 \

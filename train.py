@@ -93,8 +93,8 @@ def get_args():
     # sawyer env6
     parser.add_argument('--presampled_goal_dir', type=str,
                         default='~/offline_c_learning/dataset/env6_td_pnp_push/goals_early_stop')
-    parser.add_argument('--goal_timeoutk', type=int, default=10)
-    parser.add_argument('--eval_seed', type=int, default=12)
+    parser.add_argument('--goal_timeoutk', type=int, default=-1)
+    parser.add_argument('--eval_seed', type=int, default=31)
     parser.add_argument('--env_obs_img_dim', type=int, default=196)
     parser.add_argument('--obs_img_dim', type=int, default=48)
 
